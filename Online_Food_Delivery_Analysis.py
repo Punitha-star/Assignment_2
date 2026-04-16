@@ -3,18 +3,18 @@ import numpy as np
 import pymysql
 from sqlalchemy import create_engine
 
-# Load Dataset
+# 1️⃣ Load Dataset
 df = pd.read_csv('C:\\Users\\Niresh\\Guvi\\ONINE_FOOD_DELIVERY_ANALYSIS.csv')
 
-# Strip column names (VERY IMPORTANT)
+# 2️⃣ Strip column names (VERY IMPORTANT)
 df.columns = df.columns.str.strip()
 
-# Drop unwanted 'Unnamed' columns
+# 3️⃣ Drop unwanted 'Unnamed' columns
 df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
 
 # -------------------------------------------------------
-# HANDLE CATEGORICAL COLUMNS (Fill with MODE)
-
+# 4️⃣ HANDLE CATEGORICAL COLUMNS (Fill with MODE)
+# -------------------------------------------------------
 
 categorical_cols = df.select_dtypes(include='object').columns
 
@@ -26,7 +26,8 @@ for col in categorical_cols:
     df[col] = df[col].astype('category')
 
 # -------------------------------------------------------
-# HANDLE NUMERICAL COLUMNS
+# 5️⃣ HANDLE NUMERICAL COLUMNS
+# -------------------------------------------------------
 
 numerical_cols = df.select_dtypes(include=['int64', 'float64']).columns
 
@@ -44,8 +45,8 @@ df['Distance_km'] = df['Distance_km'].round(2)
 df['Delivery_Rating'] = df['Delivery_Rating'].round(2)
 
 # -------------------------------------------------------
-# SPECIAL CASES
-
+# 6️⃣ SPECIAL CASES
+# -------------------------------------------------------
 
 # Customer_Gender (27% null → Fill with Mode)
 if 'Customer_Gender' in df.columns:
@@ -58,8 +59,8 @@ if 'Cancellation_Reason' in df.columns:
     df['Cancellation_Reason'] = df['Cancellation_Reason'].astype('category')
 
 # -------------------------------------------------------
-# DATE & TIME CLEANING
-
+# 7️⃣ DATE & TIME CLEANING
+# -------------------------------------------------------
 
 if 'Order_Date' in df.columns:
     df['Order_Date'] = pd.to_datetime(df['Order_Date'], errors='coerce')
@@ -70,6 +71,7 @@ if 'Order_Time' in df.columns:
     df['Order_Time'] = df['Order_Time'].fillna(method='ffill')
 
 # -------------------------------------------------------
+# 8️⃣ FIX AGE COLUMN
 # more then 50% null value i am using median also age is float and convert int
 if 'Customer_Age' in df.columns:
     df['Customer_Age'] = df['Customer_Age'].fillna(df['Customer_Age'].median())
@@ -114,9 +116,10 @@ def age_group(age):
 df['Age_Group'] = df['Customer_Age'].apply(age_group)
 df.to_csv("cleaned_orders.csv", index=False)
 
+#data base part
 # STEP 1: LOAD CSV DATA
 # ==============================
-print("Loading cleaned earthquake data...")
+print("Loading cleaned fooddelivery data...")
 df = pd.read_csv(r"C:\Users\Niresh\Guvi\cleaned_orders.csv")
 print(f"Loaded {len(df)} records\n")
 
@@ -145,3 +148,5 @@ try:
     #print("Data inserted successfully\n")
 except Exception as e:
     print("Error inserting data:", e)
+
+# ==============================

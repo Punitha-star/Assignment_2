@@ -1,210 +1,228 @@
 import streamlit as st
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 from sqlalchemy import create_engine
 
 # -------------------------------
 # PAGE CONFIG
 # -------------------------------
-st.set_page_config(
-    page_title="Food Delivery Dashboard",
-    layout="wide"
-)
-
+st.set_page_config(page_title="Food Delivery Dashboard", layout="wide")
 st.title("🍔 Food Delivery 🚚 Dashboard")
 
 # -------------------------------
 # DATABASE CONNECTION
 # -------------------------------
-print("Connecting to MySQL...")
-engine = create_engine(
-    "mysql+pymysql://root:12345@localhost/Project"
-)
-print("Connected to MySQL\n")
+engine = create_engine("mysql+pymysql://root:12345@localhost/Project")
 
-# SQL TASKS (DROPDOWN)
 # -------------------------------
-TASKS = {
-    "1.Top 10 - Spending customers Analysis": {
-        "query": """
+# LOAD FULL DATA (EDA)
+# -------------------------------
+eda_df = pd.read_sql("SELECT * FROM food_delivery_orders", engine)
+
+# -------------------------------
+# SIDEBAR NAVIGATION
+# -------------------------------
+option = st.sidebar.radio("Select Module", ["SQL Analysis", "EDA Analysis"])
+
+# =========================================================
+# 🔹 SQL ANALYSIS (15 QUERIES)
+# =========================================================
+if option == "SQL Analysis":
+
+    st.header("📊 SQL Analysis")
+
+    TASKS = {
+        "1.Top 10 Customers": """
             SELECT Customer_ID,SUM(Order_Value) AS Total_Spending
             FROM food_delivery_orders
             GROUP BY Customer_ID
             ORDER BY Total_Spending DESC
             LIMIT 10;
         """,
-        "title": "Top 10 - Spending customers Analysis"
-    },
 
-    "2.Age - wise Purchases Value Insights": {
-        "query": """
-            SELECT Customer_Age,
-            ROUND(AVG(Order_Value), 2) AS Avg_Order_Value
+        "2.Age-wise Purchase": """
+            SELECT Customer_Age,ROUND(AVG(Order_Value),2) AS Avg_Order_Value
             FROM food_delivery_orders
             GROUP BY Customer_Age;
         """,
-        "title": "Age - wise Purchases Value Insights"
-    },
 
-    "3.Weekend vs weekday order patterns Analysis": {
-        "query": """
-            SELECT Order_Day_Type,
-            COUNT(*) AS Total_Orders
+        "3.Weekend vs Weekday": """
+            SELECT Order_Day_Type,COUNT(*) AS Total_Orders
             FROM food_delivery_orders
             GROUP BY Order_Day_Type;
         """,
-        "title": "Weekend vs weekday order patterns Analysis"
-    },
 
-    "4.Monthly revenue Analysis": {
-        "query": """
+        "4.Monthly Revenue": """
             SELECT MONTHNAME(Order_Date) AS Month,
-            ROUND(SUM(Order_Value),2) AS Total_Revenue
+            ROUND(SUM(Order_Value),2) AS Revenue
             FROM food_delivery_orders
-            GROUP BY Month
-            ORDER BY MONTH;
+            GROUP BY Month;
         """,
-        "title": "Monthly revenue Analysis"
-    },
 
-    "5. Discounts vs profit Analysis": {
-        "query": """
-            SELECT Discount_Applied,
-            ROUND(AVG(Profit_Margin),2) AS Avg_Profit
+        "5.Discount vs Profit": """
+            SELECT Discount_Applied,ROUND(AVG(Profit_Margin),2) AS Profit
             FROM food_delivery_orders
-            GROUP BY Discount_Applied
-            ORDER BY Discount_Applied;
+            GROUP BY Discount_Applied;
         """,
-        "title": "Discounts vs profit Analysis"
-    },
 
-    "6.High-revenue cities and cuisines Analysis": {
-        "query": """
-            select City,Cuisine_Type,Round(Avg(Order_Value),2) AS Total_Revenue
-            from food_delivery_orders
-            group by City,Cuisine_Type
-            order by Total_Revenue desc;
+        "6.City & Cuisine Revenue": """
+            SELECT City,Cuisine_Type,ROUND(AVG(Order_Value),2) AS Revenue
+            FROM food_delivery_orders
+            GROUP BY City,Cuisine_Type;
         """,
-        "title": "High-revenue cities and cuisines Analysis"
-    },
 
-    "7.City-wise Delivery Time Analysis": {
-        "query": """
-            select City,Round(Avg(Delivery_Time_Min),2) As Average_Delivery_Time
-            from food_delivery_orders
-            group by City
-            ORDER BY Average_Delivery_Time;
+        "7.City Delivery Time": """
+            SELECT City,ROUND(AVG(Delivery_Time_Min),2) AS Avg_Time
+            FROM food_delivery_orders
+            GROUP BY City;
         """,
-        "title": "City-wise Delivery Time Analysis"
-    },
 
-    "8.Distance vs delivery delay Analysis": {
-        "query": """
+        "8.Distance vs Delivery": """
             SELECT ROUND(Distance_km,1) AS Distance,
-            ROUND(AVG(Delivery_Time_Min),2) AS Avg_Delivery_Time
+            ROUND(AVG(Delivery_Time_Min),2) AS Avg_Time
             FROM food_delivery_orders
-            GROUP BY Distance
-            ORDER BY Distance;
+            GROUP BY Distance;
         """,
-        "title": "Distance vs delivery delay Analysis"
-    },
 
-    "9.Delivery rating vs delivery time Analysis": {
-        "query": """
-            select round(Delivery_Rating,1) AS Delivery_Rating, ROUND(AVG(Delivery_Time_Min),2) AS Avg_Delivery_Time
-            from food_delivery_orders
-            group by Delivery_Rating
-            order by Delivery_Rating desc;
+        "9.Rating vs Time": """
+            SELECT ROUND(Delivery_Rating,1) AS Rating,
+            ROUND(AVG(Delivery_Time_Min),2) AS Avg_Time
+            FROM food_delivery_orders
+            GROUP BY Rating;
         """,
-        "title": "Delivery rating vs delivery time Analysis"
-    },
 
-    "10.Highest Rated Restaurants Analysis": {
-        "query": """
-            select Restaurant_Name,ROUND(AVG(Delivery_Rating),2) AS Avg_Rating,COUNT(Order_ID) AS Total_Orders FROM food_delivery_orders
+        "10.Top Restaurants": """
+            SELECT Restaurant_Name,
+            ROUND(AVG(Delivery_Rating),2) AS Rating,
+            COUNT(*) AS Orders
+            FROM food_delivery_orders
             GROUP BY Restaurant_Name
-            ORDER BY Avg_Rating DESC
+            ORDER BY Rating DESC
             LIMIT 10;
         """,
-        "title": "Highest Rated Restaurants Analysis"
-    },
 
-    "11.Restaurants-wise Cancellation Analysis": {
-        "query": """
-            SELECT Restaurant_Name, COUNT(*) AS Total_Cancellations
-            FROM food_delivery_orders           
-            WHERE Cancellation_Reason != 'None'
-            GROUP BY Restaurant_Name
-        """,
-        "title": "Restaurants-wise Cancellation Analysis"
-    },
-
-    "12.Cuisines-wise Performance Analysis": {
-        "query": """
-            SELECT Cuisine_Type,
-            COUNT(Order_ID) AS Total_Orders,
-            ROUND(SUM(Order_Value),2) AS Total_Revenue,
-            ROUND(AVG(Delivery_Rating),2) AS Avg_Rating
+        "11.Restaurant Cancellation": """
+            SELECT Restaurant_Name,COUNT(*) AS Cancel
             FROM food_delivery_orders
-            GROUP BY Cuisine_Type
-            ORDER BY Total_Revenue DESC;
+            WHERE Cancellation_Reason != 'None'
+            GROUP BY Restaurant_Name;
         """,
-        "title": "Cuisines-wise Performance Analysis"
-    },
 
-    "13.Peak Hour Demand Analysis": {
-        "query": """
-            SELECT Peak_Hour,
-            COUNT(Order_ID) AS Total_Orders
+        "12.Cuisine Performance": """
+            SELECT Cuisine_Type,COUNT(*) AS Orders,
+            ROUND(SUM(Order_Value),2) AS Revenue
+            FROM food_delivery_orders
+            GROUP BY Cuisine_Type;
+        """,
+
+        "13.Peak Hour": """
+            SELECT Peak_Hour,COUNT(*) AS Orders
             FROM food_delivery_orders
             GROUP BY Peak_Hour;
         """,
-        "title": "Peak Hour Demand Analysis"
-    },
 
-    "14.Payment Mode Preferences Analysis": {
-        "query": """
-            SELECT Payment_Mode,
-            COUNT(Order_ID) AS Total_Orders
+        "14.Payment Mode": """
+            SELECT Payment_Mode,COUNT(*) AS Orders
             FROM food_delivery_orders
-            GROUP BY Payment_Mode
-            ORDER BY Total_Orders DESC;
+            GROUP BY Payment_Mode;
         """,
-        "title": "Payment Mode Preferences Analysis"
-    },
 
-    "15.Cancellation Reason Analysis": {
-        "query": """
-            SELECT Cancellation_Reason,
-            COUNT(Order_ID) AS Total_Cancellations
+        "15.Cancellation Reason": """
+            SELECT Cancellation_Reason,COUNT(*) AS Cancel
             FROM food_delivery_orders
-            WHERE Order_Status = 'Cancelled'
-            GROUP BY Cancellation_Reason
-            ORDER BY Total_Cancellations DESC;
-        """,
-        "title": "Cancellation Reason Analysis"
-    },
-}
-# -------------------------------
-# DROPDOWN
-# -------------------------------
-selected_task = st.selectbox(
-    "📊 Select Analyst Task",
-    list(TASKS.keys())
-)
+            WHERE Order_Status='Cancelled'
+            GROUP BY Cancellation_Reason;
+        """
+    }
 
-# -------------------------------
-# RUN QUERY & DISPLAY
-# -------------------------------
-if st.button("Run"):
-    try:
-        query = TASKS[selected_task]["query"]
-        title = TASKS[selected_task]["title"]
+    selected_task = st.selectbox("Select Task", list(TASKS.keys()))
 
-        df = pd.read_sql(query, engine)
+    if st.button("Run SQL Task"):
 
-        st.subheader(title)
+        df = pd.read_sql(TASKS[selected_task], engine)
+
         st.dataframe(df, use_container_width=True)
 
-    except Exception as e:
-        st.error(f"Database error: {e}")
-        
+        # -------------------------------
+        # AUTO CHART
+        # -------------------------------
+        if len(df.columns) >= 2:
+            fig, ax = plt.subplots(figsize=(10,5))
+
+            x_col = df.columns[0]
+            y_col = df.columns[1]
+
+            # Smart chart selection
+            if "Distance" in x_col or "Rating" in x_col:
+                sns.lineplot(data=df, x=x_col, y=y_col, ax=ax)
+            else:
+                sns.barplot(data=df, x=x_col, y=y_col, ax=ax)
+
+            plt.xticks(rotation=45)
+            st.pyplot(fig)
+
+# =========================================================
+# 🔹 EDA ANALYSIS (6 TYPES)
+# =========================================================
+elif option == "EDA Analysis":
+
+    st.header("📊 Exploratory Data Analysis")
+
+    eda_option = st.selectbox(
+        "Select EDA Task",
+        [
+            "Order Value Distribution",
+            "City & Cuisine",
+            "Weekend vs Weekday",
+            "Distance vs Delivery Time",
+            "Cancellation Analysis",
+            "Correlation Heatmap"
+        ]
+    )
+         # ✅ RUN BUTTON
+    
+    if st.button("Run EDA Task"):
+
+            df = pd.read_sql("SELECT * FROM food_delivery_orders", engine)
+
+       
+    # -------------------------------
+    # EDA VISUALS
+    # -------------------------------
+
+    if eda_option == "Order Value Distribution":
+            fig, ax = plt.subplots()
+            sns.histplot(eda_df['Order_Value'], kde=True, ax=ax)
+            st.pyplot(fig)
+
+
+    elif eda_option == "City & Cuisine":
+        city_cuisine = eda_df.groupby(['City','Cuisine_Type']).size().reset_index(name='Orders')
+        fig, ax = plt.subplots(figsize=(10,5))
+        sns.barplot(data=city_cuisine, x='City', y='Orders', hue='Cuisine_Type', ax=ax)
+        plt.xticks(rotation=45)
+        st.pyplot(fig)
+
+    elif eda_option == "Weekend vs Weekday":
+        fig, ax = plt.subplots()
+        sns.countplot(data=eda_df, x='Order_Day_Type', ax=ax)
+        st.pyplot(fig)
+
+    elif eda_option == "Distance vs Delivery Time":
+        fig, ax = plt.subplots()
+        sns.scatterplot(data=eda_df, x='Distance_km', y='Delivery_Time_Min', ax=ax)
+        st.pyplot(fig)
+
+    elif eda_option == "Cancellation Analysis":
+        cancel_df = eda_df[eda_df['Order_Status']=='Cancelled']
+        fig, ax = plt.subplots()
+        sns.countplot(data=cancel_df, x='Cancellation_Reason', ax=ax)
+        plt.xticks(rotation=45)
+        st.pyplot(fig)
+
+    elif eda_option == "Correlation Heatmap":
+        numeric_df = eda_df.select_dtypes(include=['int64','float64'])
+        fig, ax = plt.subplots(figsize=(10,6))
+        sns.heatmap(numeric_df.corr(), annot=True, ax=ax)
+        st.pyplot(fig)
